@@ -16,53 +16,94 @@ class WerewolfGame {
         this.discussion_time = discussion_time;
         this.mix_roles = mix_roles;
         this.roles_config = roles_config;
+        this.game_state = { ...WerewolfGame.gameState };
         this.lang_check();
+        this.eventEmitter.on('night-action', data => {
+            if (this.game_state.current_state === 'night') {
+                // TODO işte buralara bi şeyler yapacaz
+            }
+        });
     }
 
     // static methods
 
+    static gameState = {
+        current_state: 'wait', // wait|night|day|vote
+        tour: 0,
+    }
+
     static playerState = {
+        online: true,
         alive: false,
         role: null,
+        //night: false,
+        //discussion: false,
+        voted: false,
         werewolf_bite: false,
         gunshot_wound: false,
         werewolf_protection: false,
         full_protection: false,
-        reveal: {
-            term: null,
-            is_reveal: false,
-        }
+        poisoning: false,
     }
 
     static roles = {
         villager: {
-            name: 'villager'
+            name: 'villager', 
         },
         werewolf: {
-            name: 'werewolf'
+            name: 'werewolf',
+            chosen_player: {
+                tour: null,
+                id: null
+            },
         },
         oracle: {
-            name: 'oracle'
+            name: 'oracle',
+            /*chosen_player: {
+                tour: null,
+                id: null
+            },*/
         },
         doctor: {
-            name: 'doctor'
+            name: 'doctor',
+            chosen_player: {
+                tour: null,
+                id: null
+            },
         },
         wizard: {
-            name: 'wizard'
+            name: 'wizard',
+            poison_potion: 1,
+            heal_potion: 1,
+            // poisoned_player_id: null,
+            // healed_player_id: null
         },
         hunter: {
-            name: 'hunter'
+            name: 'hunter',
+            chosen_player: {
+                tour: null,
+                id: null
+            },
         },
         gunslinger: {
-            name: 'gunslinger'
+            name: 'gunslinger',
+            silver_bullet: 2,
+            reveal: {
+                tour: null,
+                is_reveal: false,
+            },
+            chosen_player: {
+                tour: null,
+                id: null
+            }
         },
     }
 
-    static idGenerator() {
+    static generate_id() {
         return Math.random().toString(36).substring(2, 8);
     }
 
-    static shuffle(array) {
+    static shuffle_array(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             const temp = array[i];
@@ -123,10 +164,124 @@ class WerewolfGame {
         }
     }
 
+    // role methods
+
+    // TODO kurtadam ilk gece kimseyi öldüremez
+
+    kill_by_werewolf(subjectId, targetId) {
+        if (this.players[subjectId].role.name === 'werewolf') {
+            if (this.players[targetId].role.name !== 'werewolf') {
+                if (this.players[subjectId].role.chosen_player.id !== targetId) {
+                    this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                    this.players[subjectId].role.chosen_player.id = targetId;
+                    this.players[targetId].werewolf_bite = true;
+                }
+                else if (this.players[subjectId].role.chosen_player.tour !==  (this.game_state.tour - 1)) {
+                    this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                    this.players[subjectId].role.chosen_player.id = targetId;
+                    this.players[targetId].werewolf_bite = true;
+                }
+            }
+        }
+        else
+            throw new Error(texts.this_player_is_not_a_werewolf[this.lang]);
+    }
+
+    look_by_oracle(subjectId, targetId) {
+        if (this.players[subjectId].role.name === 'oracle') {
+            if ((Math.floor(Math.random() * 100) + 1) <= 70)
+                return { success: true, role: this.players[targetId].role.name };
+            else
+                return { success: false };
+        }
+        else
+            throw new Error(texts.this_player_is_not_an_oracle[this.lang]);
+    }
+
+    save_by_doctor(subjectId, targetId) {
+        if (this.players[subjectId].role.name === 'doctor') {
+            if (this.players[subjectId].role.chosen_player.id !== targetId) {
+                this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                this.players[subjectId].role.chosen_player.id = targetId;
+                this.players[targetId].werewolf_protection = true;
+            }
+            else if (this.players[subjectId].role.chosen_player.tour !==  (this.game_state.tour - 1)) {
+                this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                this.players[subjectId].role.chosen_player.id = targetId;
+                this.players[targetId].werewolf_protection = true;
+            }
+        }
+        else
+            throw new Error(texts.this_player_is_not_a_doctor[this.lang]);
+    }
+
+    poison_by_wizard(subjectId, targetId) {
+        if (this.players[subjectId].role.name === 'wizard') {
+            if (this.players[subjectId].role.poison_potion > 0) {
+                this.players[targetId].poisoning = true;
+                this.players[subjectId].role.poison_potion--;
+            }
+        }
+        else
+            throw new Error(texts.this_player_is_not_a_wizard[this.lang]);
+    }
+    
+    heal_by_wizard(subjectId, targetId) {
+        if (this.players[subjectId].role.name === 'wizard') {
+            if (this.players[subjectId].role.heal_potion > 0) {
+                this.players[targetId].full_protection = true;
+                this.players[subjectId].role.heal_potion--;
+            }
+        }
+        else
+            throw new Error(texts.this_player_is_not_a_wizard[this.lang]);
+    }
+
+    target_by_hunter(subjectId, targetId) {
+        // TODO birisi hunteri öldürdüğünde targetına bakılacak
+        if (this.players[subjectId].role.name === 'hunter') {
+            if (this.players[subjectId].role.chosen_player.id !== targetId) {
+                this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                this.players[subjectId].role.chosen_player.id = targetId;
+            }
+            else if (this.players[subjectId].role.chosen_player.tour !==  (this.game_state.tour - 1)) {
+                this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                this.players[subjectId].role.chosen_player.id = targetId;
+            }
+        }
+        else
+            throw new Error(texts.this_player_is_not_a_hunter[this.lang]);
+    }
+
+    shot_by_gunslinger(subjectId, targetId) {
+        if (this.players[subjectId].role.name === 'gunslinger') {
+            if (this.players[subjectId].role.silver_bullet > 0) {
+                if (this.players[subjectId].role.silver_bullet === 2) {
+                    this.players[subjectId].role.reveal.tour = this.game_state.tour;
+                    this.players[subjectId].role.reveal.is_reveal = true;
+                }
+                if (this.players[subjectId].role.chosen_player.id !== targetId) {
+                    this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                    this.players[subjectId].role.chosen_player.id = targetId;
+                    this.players[subjectId].role.silver_bullet--;
+                    this.players[targetId].gunshot_wound = true;
+                }
+                else if (this.players[subjectId].role.chosen_player.tour !==  (this.game_state.tour - 1)) {
+                    this.players[subjectId].role.chosen_player.tour = this.game_state.tour;
+                    this.players[subjectId].role.chosen_player.id = targetId;
+                    this.players[subjectId].role.silver_bullet--;
+                    this.players[targetId].gunshot_wound = true;
+                }
+            }
+        }
+        else
+            throw new Error(texts.this_player_is_not_a_gunslinger[this.lang]);
+    }
+
     // game methods
 
-    addPlayer({ 
-        id=WerewolfGame.idGenerator(), 
+    add_player({ 
+        id=WerewolfGame.generate_id(), 
         name,
         additional={},
     }) {
@@ -165,8 +320,6 @@ class WerewolfGame {
             }
             let role_count = 0;
             Object.values(this.roles_config.roles).map(i => role_count += i);
-            console.log(role_count);
-            console.log(Object.keys(this.players).length);
             if (Object.keys(this.players).length > role_count) {
                 for (let i = 0; i < (Object.keys(this.players).length - role_count); i++) {
                     if (this.roles_config.randomly_assign_remaining_roles) {
@@ -179,17 +332,51 @@ class WerewolfGame {
                 }
             }
         }
-        WerewolfGame.shuffle(roles_list);
+        WerewolfGame.shuffle_array(roles_list);
         for (let i = 0; i < Object.keys(this.players).length; i++) {
             this.players[Object.keys(this.players)[i]].role = WerewolfGame.roles[roles_list[i]];
+        }
+    }
+
+    set_night() {
+        this.game_state.current_state = 'night';
+        this.game_state.tour += 1;
+        this.emit('night', {
+
+        });
+    }
+
+    set_day() {
+    
+    }
+
+    set_vote() {
+
+    }
+
+    compute_the_night() {
+
+    }
+
+    reset_votes() {
+        for (const playerId in this.players) {
+            this.players[playerId].voted = false;
         }
     }
 
     start() {
         this.start_check();
         this.distribute_roles();
+        // this.on('discuss-time-added');
+    }
+
+    reset() {
+        this.game_state = { ...WerewolfGame.gameState };
+        // TODO oyuncuların state i de sıfırla
     }
 }
+
+// TODO oyunculara oyuncu listesini iletirken kurtadama diğer kurtadamı da göster
 
 const game = new WerewolfGame({
     lang: 'tr',
@@ -206,11 +393,17 @@ game.on('player-added', (player) => {
     console.log('yeni bir oyuncu eklendi: ' + player.full_name);
 });
 
-game.addPlayer({ name: 'player_1' });
-game.addPlayer({ name: 'player_2' });
-game.addPlayer({ name: 'player_3' });
-game.addPlayer({ name: 'player_4' });
-game.addPlayer({ name: 'player_5' });
-game.addPlayer({ name: 'player_6' });
+game.on('night', (state) => {
+    console.log('oyun durumu değişti: \n' + JSON.stringify(state));
+});
+
+game.add_player({ name: 'player_1' });
+game.add_player({ name: 'player_2' });
+game.add_player({ name: 'player_3' });
+game.add_player({ name: 'player_4' });
+game.add_player({ name: 'player_5' });
+game.add_player({ name: 'player_6' });
 
 game.start();
+
+console.log(game.players);
