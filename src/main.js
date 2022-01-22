@@ -305,4 +305,4 @@ class WerewolfGame {
 
 // TODO oyunculara oyuncu listesini iletirken kurtadama diğer kurtadamı da göster
 
-export default WerewolfGame;
+exports.default = WerewolfGame;

@@ -1,4 +1,4 @@
-import WerewolfGame from './src/main.js';
+const WerewolfGame = require('./src/main.js');
 
 const game = new WerewolfGame({
     lang: 'tr',

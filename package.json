@@ -1,7 +1,7 @@
 {
   "name": "werewolf-engine",
   "version": "1.0.0",
-  "type": "module",
+  "type": "commonjs",
   "main": "index.js",
   "license": "MIT",
   "scripts": {

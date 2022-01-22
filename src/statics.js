@@ -1,9 +1,9 @@
-export const gameState = {
+module.exports.gameState = {
     current_state: 'wait', // wait|night|day|vote
     tour: 0,
 }
 
-export const playerState = {
+module.exports.playerState = {
     online: true,
     alive: false,
     role: null,
@@ -15,7 +15,7 @@ export const playerState = {
     poisoning: false,
 }
 
-export const roles = {
+module.exports.roles = {
     villager: {
         name: 'villager' 
     },
@@ -62,11 +62,11 @@ export const roles = {
     },
 }
 
-export function generate_id() {
+module.exports.generate_id = function () {
     return Math.random().toString(36).substring(2, 8);
 }
 
-export function shuffle_array(array) {
+module.exports.shuffle_array = function (array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         const temp = array[i];
