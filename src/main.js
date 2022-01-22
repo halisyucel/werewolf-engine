@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events';
-import statics from './statics.js';
-import texts from '../lib/texts.js';
+const EventEmitter = require('events').EventEmitter;
+const statics = require('./statics.js');
+const texts = require('../lib/texts.js');
 
 
 // TODO: player disconnect emiti eklenecek
